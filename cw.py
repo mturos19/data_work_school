@@ -100,11 +100,9 @@ def clean_data(df):
 
     #Shape of resulting dataframe
     print("Cleaned dataframe shape:", df.shape)
-    df.to_csv("clean_data.csv", index=False) # dump data to csv
+    #df.to_csv("clean_data.csv", index=False) # dump data to csv
     return df
     
-
-clean_data(df)
 df_cln = clean_data(df)
 
 
@@ -112,11 +110,10 @@ df_cln = clean_data(df)
 def normalise_data(cldf):
     cldf_norm = cldf.select_dtypes(include=[np.number])
     cldf_norm = (cldf_norm - cldf_norm.min()) / (cldf_norm.max() - cldf_norm.min())
-    cldf_norm_desc = cldf_norm.describe()
-    print(f"Normalised data summary:\n{cldf_norm_desc}")
-    cldf_norm.to_csv("normalised_data.csv", index=False) # dump normalised data into a .csv
+    #print(f"Normalised data summary:\n{cldf_norm.describe()}")
+    #cldf_norm.to_csv("normalised_data.csv", index=False) # dump normalised data into a .csv
     return cldf_norm
-#normalise_data(df_cln)
+
 
 
 # 2. Data exploration ------------ 
@@ -132,7 +129,7 @@ def viz_pr_ne(df):
     plt.tight_layout()
     plt.savefig("heatmap_price_neighborhood.jpg")
     plt.show()
-#viz_pr_ne(df_cln)
+viz_pr_ne(df_cln)
 
 #Visualize prices over time, line chart
 def viz_pr_time(df):
@@ -144,7 +141,7 @@ def viz_pr_time(df):
     plt.title('Prices over time')
     plt.savefig('prices_time.jpg')
     plt.show()
-#viz_pr_time(df_cln)
+viz_pr_time(df_cln)
 
     
 
@@ -158,7 +155,7 @@ def scat_plot(plot_cols, df):
     plt.title("Scatter Matrix")
     plt.savefig("scatter_matrix.jpg", dpi=300)
     plt.show()
-#scat_plot(plot_cols, df_cln)
+scat_plot(plot_cols, df_cln)
 
 
 #Correlation matrix
@@ -168,10 +165,60 @@ def corr_plot(plot_cols, df_cln):
     plt.title('Correlation Matrix')
     plt.savefig("correlation_matrix.jpg")
     plt.show()
-#corr_plot(plot_cols, df_cln)
+corr_plot(plot_cols, df_cln)
 
 
 
 # 3. Model building ------------ 
 
-#Predictors: Gross Square Feet, Land Square Feet, Sale Date, 
+data_norm = normalise_data(df_cln)
+from sklearn.model_selection import train_test_split
+df_train, df_test = train_test_split(data_norm, test_size=0.3)
+print("Training size: {}, Testing size: {}".format(len(df_train), len(df_test)))
+print("Samples: {} Features: {}".format(*df_train.shape))
+
+# Select predictors for model
+from sklearn import svm, feature_selection, linear_model
+df_model = data_norm.select_dtypes(include=[np.number]).copy()
+feature_cols = df_model.columns.values.tolist()
+feature_cols.remove('SALE PRICE')
+feature_cols.remove('LOG OF SALE PRICE')
+XO = df_model[feature_cols]
+YO = df_model['SALE PRICE']
+estimator = svm.SVR(kernel="linear")
+selector = feature_selection.RFE(estimator, n_features_to_select=5, step=1)
+selector = selector.fit(XO, YO)
+select_features = np.array(feature_cols)[selector.ranking_ == 1].tolist()
+print(select_features)
+
+#Linear model
+X = df_model[select_features]
+Y = df_model['SALE PRICE']
+trainX, testX, trainY, testY = train_test_split(X, Y, test_size=0.2)
+lm = linear_model.LinearRegression()
+lm.fit(trainX, trainY)
+# Model equations
+print("Y-axis intercept {:6.4f}".format(lm.intercept_))
+print("Weight coefficients:")
+for feat, coef in zip(select_features, lm.coef_):
+    print(" {:>20}: {:6.4f}".format(feat, coef))
+# R2 value
+print("R squared for the training data is {:4.3f}".format(lm.score(trainX, trainY)))
+print("Score against test data: {:4.3f}".format(lm.score(testX, testY)))
+
+#show histogram of residuals
+residuals = Y - lm.predict(X)
+
+plt.hist(residuals, bins=30)
+plt.title('Histogram of Residuals')
+plt.xlabel('Residuals')
+plt.ylabel('Frequency')
+plt.savefig('residuals_histogram.jpeg')
+plt.show()
+
+#evaluate the mean squared error
+def mse(df_model, pred, obs):
+    n = df_model.shape[0]
+    return sum((df_model[pred]-df_model[obs])**2)/n
+df_model['pred'] = lm.predict(X)
+print("Mean Squared error: {}".format(mse(df_model,'pred','SALE PRICE')))
