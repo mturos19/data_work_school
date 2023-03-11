@@ -192,29 +192,35 @@ select_features = np.array(feature_cols)[selector.ranking_ == 1].tolist()
 print(select_features)
 
 #Linear model
-X = df_model[select_features]
-Y = df_model['SALE PRICE']
-trainX, testX, trainY, testY = train_test_split(X, Y, test_size=0.2)
-lm = linear_model.LinearRegression()
-lm.fit(trainX, trainY)
-# Model equations
-print("Y-axis intercept {:6.4f}".format(lm.intercept_))
-print("Weight coefficients:")
-for feat, coef in zip(select_features, lm.coef_):
-    print(" {:>20}: {:6.4f}".format(feat, coef))
-# R2 value
-print("R squared for the training data is {:4.3f}".format(lm.score(trainX, trainY)))
-print("Score against test data: {:4.3f}".format(lm.score(testX, testY)))
+def linearModel(df_model, select_features):
+    global X
+    X = df_model[select_features]
+    global Y
+    Y = df_model['SALE PRICE']
+    trainX, testX, trainY, testY = train_test_split(X, Y, test_size=0.3)
+    global lm
+    lm = linear_model.LinearRegression()
+    lm.fit(trainX, trainY)
+    # Model equations
+    print("Y-axis intercept {:6.4f}".format(lm.intercept_))
+    print("Weight coefficients:")
+    for feat, coef in zip(select_features, lm.coef_):
+        print(" {:>20}: {:6.4f}".format(feat, coef))
+    # R2 value
+    print("R squared for the training data is {:4.3f}".format(lm.score(trainX, trainY)))
+    print("Score against test data: {:4.3f}".format(lm.score(testX, testY)))
 
-#show histogram of residuals
-residuals = Y - lm.predict(X)
+    #show histogram of residuals
+    residuals = Y - lm.predict(X)
 
-plt.hist(residuals, bins=30)
-plt.title('Histogram of Residuals')
-plt.xlabel('Residuals')
-plt.ylabel('Frequency')
-plt.savefig('residuals_histogram.jpeg')
-plt.show()
+    plt.hist(residuals, bins=30)
+    plt.title('Histogram of Residuals')
+    plt.xlabel('Residuals')
+    plt.ylabel('Frequency')
+    plt.savefig('residuals_histogram.jpeg')
+    plt.show()
+
+linearModel(df_model, select_features)
 
 #evaluate the mean squared error
 def mse(df_model, pred, obs):
@@ -222,3 +228,6 @@ def mse(df_model, pred, obs):
     return sum((df_model[pred]-df_model[obs])**2)/n
 df_model['pred'] = lm.predict(X)
 print("Mean Squared error: {}".format(mse(df_model,'pred','SALE PRICE')))
+
+
+
