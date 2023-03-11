@@ -14,6 +14,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pandas.plotting import scatter_matrix
 import seaborn as sns
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.model_selection import train_test_split
+from sklearn import svm, feature_selection, linear_model
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import cross_val_score
+from sklearn.cluster import KMeans
+
 
 df = pd.read_csv('Manhattan12.csv') # import csv --> dataframe
 print("Initial dataframe shape:", df.shape) # show initial dataframe shape
@@ -100,7 +107,7 @@ def clean_data(df):
 
     #Shape of resulting dataframe
     print("Cleaned dataframe shape:", df.shape)
-    #df.to_csv("clean_data.csv", index=False) # dump data to csv
+    df.to_csv("clean_data.csv", index=False) # dump data to csv
     return df
     
 df_cln = clean_data(df)
@@ -110,8 +117,8 @@ df_cln = clean_data(df)
 def normalise_data(cldf):
     cldf_norm = cldf.select_dtypes(include=[np.number])
     cldf_norm = (cldf_norm - cldf_norm.min()) / (cldf_norm.max() - cldf_norm.min())
-    #print(f"Normalised data summary:\n{cldf_norm.describe()}")
-    #cldf_norm.to_csv("normalised_data.csv", index=False) # dump normalised data into a .csv
+    print(f"Normalised data summary:\n{cldf_norm.describe()}")
+    cldf_norm.to_csv("normalised_data.csv", index=False) # dump normalised data into a .csv
     return cldf_norm
 
 
@@ -172,13 +179,11 @@ corr_plot(plot_cols, df_cln)
 # 3. Model building ------------ 
 
 data_norm = normalise_data(df_cln)
-from sklearn.model_selection import train_test_split
 df_train, df_test = train_test_split(data_norm, test_size=0.3)
 print("Training size: {}, Testing size: {}".format(len(df_train), len(df_test)))
 print("Samples: {} Features: {}".format(*df_train.shape))
 
 # Select predictors for model
-from sklearn import svm, feature_selection, linear_model
 df_model = data_norm.select_dtypes(include=[np.number]).copy()
 feature_cols = df_model.columns.values.tolist()
 feature_cols.remove('SALE PRICE')
@@ -220,6 +225,10 @@ def linearModel(df_model, select_features):
     plt.savefig('residuals_histogram.jpeg')
     plt.show()
 
+    #cross validate model
+    cv_score = cross_val_score(lm, X, Y, cv=5)
+    print("Linear model cross validation score: ", cv_score)
+
 linearModel(df_model, select_features)
 
 #evaluate the mean squared error
@@ -229,5 +238,66 @@ def mse(df_model, pred, obs):
 df_model['pred'] = lm.predict(X)
 print("Mean Squared error: {}".format(mse(df_model,'pred','SALE PRICE')))
 
+
+
+
+# Part 2 - Improved Model
+df_model.dropna(inplace=True)
+#Decision tree model
+def decisiontree(df_model, feature_cols):
+    X = df_model[feature_cols]
+    Y = df_model['SALE PRICE']
+
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size = 0.2, random_state = 42)
+
+    tm = DecisionTreeRegressor()
+    tm.fit(X_train, Y_train)
+
+    Y_pred = tm.predict(X_test)
+
+    #RMSE
+    rmse = mean_squared_error(Y_test, Y_pred, squared=False)
+    print("Decision tree root mean squared error:", rmse)
+
+    #Cross validation of decision tree model
+    cv_score = cross_val_score(tm, X, Y, cv=5)
+    print("Decision tree cross validation score: ", cv_score)
+
+
+decisiontree(df_model, feature_cols)
+
+
+def KMeansAlgo(df_model):
+    
+    #Initial histogram
+    plt.hist(df_model['SALE PRICE'])
+    plt.xlabel('SALE PRICE')
+    plt.title("Sale Price")
+    plt.grid()
+    plt.savefig("initial_histogram.jpeg")
+    plt.show()
+
+    km = KMeans(n_clusters=6)
+    km.fit(df_model)
+    #J-score
+    print('J-score= ', km.inertia_)
+    labels = km.labels_
+    md = pd.Series(labels)
+    df_model['clust'] = md
+
+    #cluster centers
+    centroids = km.cluster_centers_
+    print('centroids', centroids)
+
+    #histogram of clusters
+    plt.hist(df_model['clust'])
+    plt.title("Histogram of Clusters")
+    plt.xlabel('Cluster')
+    plt.ylabel('Frequency')
+    plt.grid()
+    plt.savefig("cluster_histogram.jpeg")
+    plt.show()
+    
+KMeansAlgo(df_model)
 
 
