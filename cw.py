@@ -20,6 +20,8 @@ from sklearn import svm, feature_selection, linear_model
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import cross_val_score
 from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+from sklearn.impute import SimpleImputer
 
 
 df = pd.read_csv('Manhattan12.csv') # import csv --> dataframe
@@ -136,7 +138,7 @@ def viz_pr_ne(df):
     plt.tight_layout()
     plt.savefig("heatmap_price_neighborhood.jpg")
     plt.show()
-viz_pr_ne(df_cln)
+#viz_pr_ne(df_cln)
 
 #Visualize prices over time, line chart
 def viz_pr_time(df):
@@ -148,7 +150,7 @@ def viz_pr_time(df):
     plt.title('Prices over time')
     plt.savefig('prices_time.jpg')
     plt.show()
-viz_pr_time(df_cln)
+#viz_pr_time(df_cln)
 
     
 
@@ -162,7 +164,7 @@ def scat_plot(plot_cols, df):
     plt.title("Scatter Matrix")
     plt.savefig("scatter_matrix.jpg", dpi=300)
     plt.show()
-scat_plot(plot_cols, df_cln)
+#scat_plot(plot_cols, df_cln)
 
 
 #Correlation matrix
@@ -172,7 +174,7 @@ def corr_plot(plot_cols, df_cln):
     plt.title('Correlation Matrix')
     plt.savefig("correlation_matrix.jpg")
     plt.show()
-corr_plot(plot_cols, df_cln)
+#corr_plot(plot_cols, df_cln)
 
 
 
@@ -242,7 +244,11 @@ print("Mean Squared error: {}".format(mse(df_model,'pred','SALE PRICE')))
 
 
 # Part 2 - Improved Model
-df_model.dropna(inplace=True)
+imputer = SimpleImputer(strategy='mean')
+imputer.fit(df_model)
+df_imputed = pd.DataFrame(imputer.transform(df_model), columns=df_model.columns)
+
+
 #Decision tree model
 def decisiontree(df_model, feature_cols):
     X = df_model[feature_cols]
@@ -267,10 +273,10 @@ def decisiontree(df_model, feature_cols):
 decisiontree(df_model, feature_cols)
 
 
-def KMeansAlgo(df_model):
+def KMeansAlgo(df_imputed):
     
     #Initial histogram
-    plt.hist(df_model['SALE PRICE'])
+    plt.hist(df_imputed['SALE PRICE'])
     plt.xlabel('SALE PRICE')
     plt.title("Sale Price")
     plt.grid()
@@ -278,26 +284,39 @@ def KMeansAlgo(df_model):
     plt.show()
 
     km = KMeans(n_clusters=6)
-    km.fit(df_model)
+    km.fit(df_imputed)
     #J-score
     print('J-score= ', km.inertia_)
-    labels = km.labels_
-    md = pd.Series(labels)
-    df_model['clust'] = md
+    cluster_labels = km.labels_
+    md = pd.Series(cluster_labels)
+    df_imputed['clust'] = md
 
     #cluster centers
     centroids = km.cluster_centers_
     print('centroids', centroids)
 
     #histogram of clusters
-    plt.hist(df_model['clust'])
+    plt.hist(df_imputed['clust'])
     plt.title("Histogram of Clusters")
     plt.xlabel('Cluster')
     plt.ylabel('Frequency')
     plt.grid()
     plt.savefig("cluster_histogram.jpeg")
     plt.show()
-    
-KMeansAlgo(df_model)
 
+
+    ######## 2D plot of unclustered data
+    pca_data = PCA(n_components=2).fit(df_imputed)
+    pca_2d = pca_data.transform(df_imputed)
+    plt.scatter(pca_2d[:,0], pca_2d[:,1])
+    plt.title('Unclustered Data')
+    plt.show()
+
+    ######## 2D plot of the clusters
+    plt.scatter(pca_2d[:,0], pca_2d[:,1], c=cluster_labels)
+    plt.title('Price Clusters')
+    plt.show()
+
+
+KMeansAlgo(df_imputed)
 
