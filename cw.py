@@ -310,11 +310,13 @@ def KMeansAlgo(df_imputed):
     pca_2d = pca_data.transform(df_imputed)
     plt.scatter(pca_2d[:,0], pca_2d[:,1])
     plt.title('Unclustered Data')
+    plt.savefig("unclustered_data_plot.jpeg")
     plt.show()
 
     ######## 2D plot of the clusters
     plt.scatter(pca_2d[:,0], pca_2d[:,1], c=cluster_labels)
     plt.title('Price Clusters')
+    plt.savefig("prices_clusters_plot.jpeg")
     plt.show()
 
 
