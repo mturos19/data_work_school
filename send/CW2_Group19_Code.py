@@ -22,6 +22,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.impute import SimpleImputer
+from sklearn.neighbors import KNeighborsRegressor
 
 
 df = pd.read_csv('Manhattan12.csv') # import csv --> dataframe
@@ -123,8 +124,6 @@ def normalise_data(cldf):
     cldf_norm.to_csv("normalised_data.csv", index=False) # dump normalised data into a .csv
     return cldf_norm
 
-
-
 # 2. Data exploration ------------ 
 
 
@@ -138,7 +137,7 @@ def viz_pr_ne(df):
     plt.tight_layout()
     plt.savefig("heatmap_price_neighborhood.jpg")
     plt.show()
-#viz_pr_ne(df_cln)
+viz_pr_ne(df_cln)
 
 #Visualize prices over time, line chart
 def viz_pr_time(df):
@@ -150,7 +149,7 @@ def viz_pr_time(df):
     plt.title('Prices over time')
     plt.savefig('prices_time.jpg')
     plt.show()
-#viz_pr_time(df_cln)
+viz_pr_time(df_cln)
 
     
 
@@ -164,7 +163,7 @@ def scat_plot(plot_cols, df):
     plt.title("Scatter Matrix")
     plt.savefig("scatter_matrix.jpg", dpi=300)
     plt.show()
-#scat_plot(plot_cols, df_cln)
+scat_plot(plot_cols, df_cln)
 
 
 #Correlation matrix
@@ -174,7 +173,7 @@ def corr_plot(plot_cols, df_cln):
     plt.title('Correlation Matrix')
     plt.savefig("correlation_matrix.jpg")
     plt.show()
-#corr_plot(plot_cols, df_cln)
+corr_plot(plot_cols, df_cln)
 
 
 
@@ -196,7 +195,7 @@ estimator = svm.SVR(kernel="linear")
 selector = feature_selection.RFE(estimator, n_features_to_select=5, step=1)
 selector = selector.fit(XO, YO)
 select_features = np.array(feature_cols)[selector.ranking_ == 1].tolist()
-print(select_features)
+print('Selected features', select_features)
 
 #Linear model
 def linearModel(df_model, select_features):
@@ -283,7 +282,7 @@ def KMeansAlgo(df_imputed):
     plt.savefig("initial_histogram.jpeg")
     plt.show()
 
-    km = KMeans(n_clusters=6)
+    km = KMeans(n_clusters=5)
     km.fit(df_imputed)
     #J-score
     print('J-score= ', km.inertia_)
@@ -318,6 +317,21 @@ def KMeansAlgo(df_imputed):
     plt.title('Price Clusters')
     plt.savefig("prices_clusters_plot.jpeg")
     plt.show()
+
+    #Regressor on clusters
+    clusters = km.fit_predict(X)
+    for i in range(km.n_clusters):
+        X_cluster = X[clusters == i]
+        Y_cluster = Y[clusters == i]
+
+        knn = KNeighborsRegressor(n_neighbors=3) # k=3
+        knn.fit(X_cluster, Y_cluster)
+
+        new_test = [0.165, 0.18, 0.108108, 0.1111, 0.23454]
+        predicted_price = knn.predict([new_test])
+
+        print(f"Predicted price for cluster {i}: {predicted_price}")
+
 
 
 KMeansAlgo(df_imputed)
